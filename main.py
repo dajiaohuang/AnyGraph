@@ -218,8 +218,6 @@ class Exp:
                 ep_tstnum += usrs.shape[0]
                 log('Steps %d/%d: recall = %.2f, ndcg = %.2f          ' % (i, steps, recall, ndcg), save=False, oneline=True)
         ret = dict()
-        if ep_tstnum == 0:
-            raise ValueError('No test users were evaluated')
         ret['Recall'] = ep_recall / ep_tstnum
         ret['NDCG'] = ep_ndcg / ep_tstnum
         ret['tstNum'] = ep_tstnum
