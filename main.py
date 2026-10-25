@@ -11,6 +11,13 @@ import os
 import setproctitle
 import time
 
+
+def _topk_predictions(scores, requested_k):
+    if requested_k <= 0:
+        raise ValueError('topk must be positive')
+    return t.topk(scores, min(requested_k, scores.shape[-1]))
+
+
 class Exp:
     def __init__(self, multi_handler):
         self.multi_handler = multi_handler
@@ -208,7 +215,7 @@ class Exp:
                 trn_masks, cand_size = self.make_trn_masks(batch_data.numpy(), tst_loader.dataset.csrmat)
                 feats = handler.projectors
                 all_preds = expert.pred_for_test((usrs, trn_masks), cand_size, feats, rerun_embed=False if i!=0 else True)
-                _, top_locs = t.topk(all_preds, args.topk)
+                _, top_locs = _topk_predictions(all_preds, args.topk)
                 top_locs = top_locs.cpu().numpy()
                 recall, ndcg = self.calc_recall_ndcg(top_locs, tst_loader.dataset.tstLocs, usrs)
                 ep_recall += recall
