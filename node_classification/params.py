@@ -2,8 +2,6 @@ import argparse
 
 
 def parse_bool(value):
-    if isinstance(value, bool):
-        return value
     normalized = value.lower()
     if normalized in ('true', '1', 'yes', 'y'):
         return True
