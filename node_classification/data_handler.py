@@ -149,7 +149,8 @@ class DataHandler:
     def load_data(self):
         tst_mat = self.load_one_file(self.tstfile)
         trn_mat = self.load_one_file(self.trnfile)
-        # fewshot_mat = self.load_one_file(self.fewshotfile)
+        val_mat = self.load_one_file(self.valfile) if args.tst_mode == 'val' else None
+        fewshot_mat = self.load_one_file(self.fewshotfile) if args.trn_mode == 'fewshot' or args.tst_mode == 'val' else None
         if self.feat_file is not None:
             self.feats = t.from_numpy(self.load_feats(self.feat_file)).float()
             self.feats = self.feats
@@ -164,7 +165,8 @@ class DataHandler:
             print('Dataset: {data_name}, User num: {user_num}, Item num: {item_num}, Node num: {node_num}, Edge num: {edge_num}'.format(data_name=self.data_name, user_num=args.user_num, item_num=args.item_num, node_num=args.node_num, edge_num=trn_mat.nnz))
         else:
             args.node_num = trn_mat.shape[0]
-            print('Dataset: {data_name}, Node num: {node_num}, Edge num: {edge_num}'.format(data_name=self.data_name, node_num=args.node_num, edge_num=trn_mat.nnz+tst_mat.nnz))
+            edge_num = trn_mat.nnz + tst_mat.nnz + (val_mat.nnz if val_mat is not None else 0)
+            print('Dataset: {data_name}, Node num: {node_num}, Edge num: {edge_num}'.format(data_name=self.data_name, node_num=args.node_num, edge_num=edge_num))
         if args.tst_mode == 'tst':
             tst_data = NodeTstData(tst_mat)
             self.tst_loader = data.DataLoader(tst_data, batch_size=args.tst_batch, shuffle=False, num_workers=0)
@@ -172,18 +174,25 @@ class DataHandler:
             # self.tst_loss_loader = data.DataLoader(tst_loss_data, batch_size=args.batch, shuffle=False, num_workers=0)
             self.tst_input_adj = self.make_torch_adj(trn_mat)
         elif args.tst_mode == 'val':
-            raise Exception('Validation not made for node classification')
+            tst_data = NodeTstData(val_mat)
+            self.tst_loader = data.DataLoader(tst_data, batch_size=args.tst_batch, shuffle=False, num_workers=0)
+            self.tst_input_adj = self.make_torch_adj(fewshot_mat)
         else:
             raise Exception('Specify proper test mode')
 
 
-        self.trn_mat = trn_mat
+        if args.trn_mode == 'fewshot':
+            self.trn_mat = fewshot_mat
+        elif args.trn_mode == 'train-all':
+            self.trn_mat = trn_mat
+        else:
+            raise Exception('Specify proper train mode')
         trn_data = TrnData(self.trn_mat)
         self.trn_loader = data.DataLoader(trn_data, batch_size=args.batch, shuffle=True, num_workers=0)
-        if args.tst_mode == 'tst':
-            self.trn_input_adj = self.tst_input_adj
+        if args.trn_mode == 'fewshot':
+            self.trn_input_adj = self.tst_input_adj if args.tst_mode == 'val' else self.make_torch_adj(fewshot_mat)
         else:
-            self.trn_input_adj = self.make_torch_adj(trn_mat)
+            self.trn_input_adj = self.tst_input_adj if args.tst_mode == 'tst' else self.make_torch_adj(trn_mat)
 
         if self.trn_mat.shape[0] == self.trn_mat.shape[1]:
             self.asym_adj = self.trn_input_adj
